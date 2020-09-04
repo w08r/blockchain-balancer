@@ -39,8 +39,10 @@ fn get_u128(inp: mpfr::mpfr_t) -> u128 {
         let zsc = gmp::mpz_get_str(ptr::null::<c_char>() as *mut i8, 10, &z);
         // CString should p0wn the memory IIUC
         let zs = CString::from_raw(zsc);
-        return u128::from_str_radix(zs.to_str().expect("utf8 conv failed"), 10)
+        let res = u128::from_str_radix(zs.to_str().expect("utf8 conv failed"), 10)
             .expect("convert final value from arbitrary precision to u128");
+        gmp::mpz_clear(&mut z);
+        return res;
     }
 }
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,6 +54,7 @@ fn calc( a: u128, b: u128, amount: u128, weight1: u128, weight2: u128) -> u128 {
     let mut amountm = get_mpf(amount);
     let mut weight1m = get_mpf(weight1);
     let mut weight2m = get_mpf(weight2);
+    let mut m1 = get_mpf(1);
     let res;
     unsafe {
         let mut wr = MaybeUninit::uninit();
@@ -65,7 +68,7 @@ fn calc( a: u128, b: u128, amount: u128, weight1: u128, weight2: u128) -> u128 {
         mpfr::add(&mut p, &amountm, &bm, mpfr::rnd_t::RNDD);
         mpfr::div(&mut p, &bm, &p, mpfr::rnd_t::RNDD);
         mpfr::pow(&mut p, &p, &wr, mpfr::rnd_t::RNDD);
-        mpfr::sub(&mut p, &get_mpf(1), &p, mpfr::rnd_t::RNDD);
+        mpfr::sub(&mut p, &m1, &p, mpfr::rnd_t::RNDD);
         mpfr::mul(&mut p, &am, &p, mpfr::rnd_t::RNDD);
         
         res = get_u128(p);
@@ -76,6 +79,7 @@ fn calc( a: u128, b: u128, amount: u128, weight1: u128, weight2: u128) -> u128 {
         mpfr::clear(&mut weight1m);
         mpfr::clear(&mut weight2m);
         mpfr::clear(&mut wr);
+        mpfr::clear(&mut m1);
         mpfr::clear(&mut p);
     }
 
